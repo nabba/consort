@@ -5,6 +5,30 @@ All notable changes to consort are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) while
 still in 0.x.
 
+## [0.13.0] — 2026-10-13
+
+### Added
+- **Gemini 4 works as a Pi Vertex reviewer.** Pi picks the Gemini thinking
+  control by matching the model id against `gemini-3(.x)-pro|flash`;
+  `gemini-4-argon` matched neither, so Pi sent the Gemini 2.5
+  `thinkingBudget`, and Vertex refused every call, including the
+  `--thinking off` reachability probe ("Thinking budget is not supported for
+  this model. Use thinking level instead"). The new
+  `scripts/pi-vertex-shim.mjs` is loaded with `-e` next to the fence on
+  every `google-vertex` run. For a `gemini-N` id with N >= 4 it turns the budget into
+  `thinkingLevel` (`CONSORT_PI_THINKING`: minimal/low -> LOW, medium ->
+  MEDIUM, high/xhigh/max -> HIGH; a zero budget -> LOW). These are the levels
+  argon accepts; it refuses MINIMAL. Dropping the budget instead would have
+  run the reviewer with no thinking at all: argon spent 0 thinking tokens
+  without a thinkingConfig. Gemini 2.x/3.x payloads and a payload that
+  already carries a level are untouched. `scripts/pi-vertex-shim.test.mjs` pins the
+  mapping.
+- **`CONSORT_VERTEX_PRIORITY=1`: Vertex Priority PayGo for the Pi Vertex leg.**
+  Adds `X-Vertex-AI-LLM-Request-Type: shared` and
+  `X-Vertex-AI-LLM-Shared-Request-Type: priority`. Verified live on
+  gemini-4-argon: `usageMetadata.trafficType` = `ON_DEMAND_PRIORITY`. Off by
+  default; it bills at priority rates. Global endpoint only.
+
 ## [0.12.1] — 2026-10-06
 
 ### Fixed

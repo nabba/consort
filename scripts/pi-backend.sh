@@ -63,6 +63,11 @@
 #                            $CONSORT_GEMINI_MODEL or gemini-3.1-pro-preview;
 #                            anthropic -> claude-opus-4-8)
 #      CONSORT_PI_THINKING  (default high; off|minimal|low|medium|high|xhigh|max)
+#      CONSORT_VERTEX_PRIORITY=1  google-vertex only: send the request as Vertex
+#                           Priority PayGo (priority queue, priority token rates;
+#                           global endpoint only). Gemini 4+ ids (gemini-4-argon)
+#                           need no setting: pi-vertex-shim.mjs turns Pi's
+#                           thinking budget into the thinking level they require.
 #      CONSORT_PI_STDERR    (file to append Pi's stderr to; dropped by default)
 #      CONSORT_PI_RAW       (file to append Pi's raw --mode json event stream to,
 #                            owner-only; the evidence when a run is discarded)
@@ -84,6 +89,7 @@
 # Resolved at source time: BASH_SOURCE may be relative, and the runner cd's
 # into the workdir before it needs this path.
 _CONSORT_PI_FENCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/pi-fence.mjs"
+_CONSORT_PI_VERTEX_SHIM="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/pi-vertex-shim.mjs"
 _consort_pi_provider() { echo "${CONSORT_PI_PROVIDER:-openai-codex}"; }
 _consort_pi_model() {
   if [ -n "${CONSORT_PI_MODEL:-}" ]; then echo "$CONSORT_PI_MODEL"; return; fi
@@ -359,8 +365,13 @@ _consort_pi_run() {
     esac
     # The fence extension (pi-fence.mjs) is loaded explicitly on every run;
     # --no-extensions in read-only disables DISCOVERY only, -e paths still load.
+    # google-vertex also gets the request shim (Gemini 4+ thinking level,
+    # opt-in Priority PayGo); see pi-vertex-shim.mjs.
+    local ext=(-e "$_CONSORT_PI_FENCE")
+    [ "$(_consort_pi_provider)" != google-vertex ] || ext+=(-e "$_CONSORT_PI_VERTEX_SHIM")
     CONSORT_PI_WORKDIR="${workdir:-$PWD}" CONSORT_PI_MODE="${CONSORT_PI_MODE:-read-only}" \
-    pi -p --mode json --no-session --offline -e "$_CONSORT_PI_FENCE" "$@" 2>>"$errf" | tee -a "$rawf"
+    CONSORT_PI_THINKING="$(_consort_pi_thinking)" \
+    pi -p --mode json --no-session --offline "${ext[@]}" "$@" 2>>"$errf" | tee -a "$rawf"
   )
 }
 

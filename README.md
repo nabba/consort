@@ -362,6 +362,19 @@ Extracted results are validated against the schema; `{}` and
 `{"findings":null}` are not clean verdicts. Providers without a built-in default model need
 `CONSORT_PI_MODEL` set explicitly.
 
+On `google-vertex` a second extension, `scripts/pi-vertex-shim.mjs`, rides
+along. Pi only knows the Gemini 3 thinking control for ids it matches as
+`gemini-3(.x)-pro|flash`; anything newer gets the Gemini 2.5 thinking
+*budget*, which Gemini 4 refuses with a 400. The shim rewrites the budget
+into a thinking *level* for any `gemini-N` id with N >= 4 (effort from
+`CONSORT_PI_THINKING`; Pi's "thinking off" maps to `LOW`, the lowest level
+`gemini-4-argon` accepts), so a Gemini 4 leg is just
+`CONSORT_REVIEWERS=codex,pi:google-vertex:gemini-4-argon`. Pi warns that the id
+is a custom one and prices it with its default Vertex model's rates, so the
+evidence line's `$` is approximate for Gemini 4. `CONSORT_VERTEX_PRIORITY=1`
+sends every Vertex request as Priority PayGo (priority queue at priority
+token rates; Google serves it on the `global` endpoint only).
+
 Auth is Pi's own (`pi auth check --provider <id>`); Vertex reads
 `GOOGLE_APPLICATION_CREDENTIALS` / ADC plus `GOOGLE_CLOUD_PROJECT` and
 `GOOGLE_CLOUD_LOCATION`. For google providers the consort-scoped names are
