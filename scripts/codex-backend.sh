@@ -63,10 +63,13 @@ _consort_companion_path() {
   # The Claude Code config dir holds the plugin cache: $CLAUDE_CONFIG_DIR when
   # set (leading ~ expanded), ~/.claude otherwise. Search that dir first and
   # fall back to ~/.claude, so a plugin installed only there keeps working.
+  # Only an absolute CLAUDE_CONFIG_DIR counts: a relative one would resolve
+  # against the reviewed repo, which could then ship the script we execute.
   # Within a dir the newest plugin version wins; the glob covers marketplace-
   # directory variations. Paths may contain spaces (one result per line).
   local cfg="${CLAUDE_CONFIG_DIR:-}" dir found
   cfg="${cfg/#\~/$HOME}"
+  case "$cfg" in /*) ;; *) cfg="" ;; esac
   for dir in ${cfg:+"$cfg"} "$HOME/.claude"; do
     found="$(ls -d "$dir"/plugins/cache/*/codex/*/scripts/codex-companion.mjs 2>/dev/null | sort -V | tail -1)"
     [ -n "$found" ] && { printf '%s\n' "$found"; return 0; }

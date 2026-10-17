@@ -15,8 +15,11 @@ still in 0.x.
   explicit `CONSORT_CODEX_BACKEND=plugin` failed. It now searches
   `$CLAUDE_CONFIG_DIR/plugins/cache` first (a leading `~` expands; paths with
   spaces work), then `~/.claude/plugins/cache`, so a plugin installed only in
-  `~/.claude` keeps working. `codex-backend.test.sh` unsets
-  `CLAUDE_CONFIG_DIR` so it no longer reads the developer's own config.
+  `~/.claude` keeps working. Only an absolute value counts (after `~`
+  expansion): a relative one would resolve against the reviewed repository,
+  which could then supply the script consort runs. `codex-backend.test.sh`
+  unsets `CLAUDE_CONFIG_DIR` so it no longer reads the developer's own config,
+  and stops at once if `mktemp` fails instead of running with an empty `$T`.
 
 ## [0.13.0] — 2026-10-13
 
