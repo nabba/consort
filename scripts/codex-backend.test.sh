@@ -9,7 +9,7 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 export HOME="$T/home"; mkdir -p "$HOME/.codex" "$T/bin"
-unset CODEX_HOME CONSORT_CODEX_HOMES CONSORT_CODEX_BACKEND CONSORT_TERMSCAPE_DATA_DIR NODETERM_CX_ROOT
+unset CODEX_HOME CONSORT_CODEX_HOMES CONSORT_CODEX_BACKEND CONSORT_TERMSCAPE_DATA_DIR NODETERM_CX_ROOT CLAUDE_CONFIG_DIR
 : > "$HOME/.codex/auth.json"; echo ok > "$HOME/.codex/behave"
 
 cat > "$T/bin/codex" <<'STUB'
@@ -167,6 +167,19 @@ mkdir -p "$HOME/.claude/plugins/cache/m/codex/1.0.0/scripts"; : > "$HOME/.claude
 check "auto without homes picks plugin" '[ "$(consort_codex_backend 2>/dev/null)" = plugin ] || ! command -v node >/dev/null'
 check "auto with homes picks exec" '[ "$(CONSORT_CODEX_HOMES=$T/b consort_codex_backend)" = exec ]'
 check "plugin + homes refused" '! CONSORT_CODEX_BACKEND=plugin CONSORT_CODEX_HOMES=$T/b consort_codex_backend 2>/dev/null'
+
+# 10b. the companion is looked up in CLAUDE_CONFIG_DIR first, then ~/.claude
+CFG="$T/App Support/claude-cfg"
+check "no CLAUDE_CONFIG_DIR: ~/.claude" '[ "$(_consort_companion_path)" = "$HOME/.claude/plugins/cache/m/codex/1.0.0/scripts/codex-companion.mjs" ]'
+mkdir -p "$CFG"
+check "config dir without the plugin falls back to ~/.claude" '[ "$(CLAUDE_CONFIG_DIR="$CFG" _consort_companion_path)" = "$HOME/.claude/plugins/cache/m/codex/1.0.0/scripts/codex-companion.mjs" ]'
+mkdir -p "$CFG/plugins/cache/m/codex/1.0.0/scripts" "$CFG/plugins/cache/m/codex/1.2.0/scripts"
+: > "$CFG/plugins/cache/m/codex/1.0.0/scripts/codex-companion.mjs"; : > "$CFG/plugins/cache/m/codex/1.2.0/scripts/codex-companion.mjs"
+check "config dir wins, newest version, path with a space" '[ "$(CLAUDE_CONFIG_DIR="$CFG" _consort_companion_path)" = "$CFG/plugins/cache/m/codex/1.2.0/scripts/codex-companion.mjs" ]'
+mkdir -p "$HOME/.claude-alt/plugins/cache/m/codex/2.0.0/scripts"; : > "$HOME/.claude-alt/plugins/cache/m/codex/2.0.0/scripts/codex-companion.mjs"
+check "leading ~ in CLAUDE_CONFIG_DIR expands" '[ "$(CLAUDE_CONFIG_DIR="~/.claude-alt" _consort_companion_path)" = "$HOME/.claude-alt/plugins/cache/m/codex/2.0.0/scripts/codex-companion.mjs" ]'
+rm -rf "$HOME/.claude"
+check "auto picks plugin from the config dir alone" '[ "$(CLAUDE_CONFIG_DIR="$CFG" consort_codex_backend 2>/dev/null)" = plugin ] || ! command -v node >/dev/null'
 
 # 11. probe walks the accounts
 mkhome p alive
