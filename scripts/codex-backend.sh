@@ -11,8 +11,9 @@
 # Resolution order:
 #   1. $CONSORT_CODEX_BACKEND if set to `exec` or `plugin` (hard override)
 #   2. auto: exec when CONSORT_CODEX_HOMES is set (see below); else newest
-#      codex-companion.mjs under ~/.claude/plugins/cache/*/codex/* with `node`
-#      available -> plugin; else `codex` CLI -> exec
+#      codex-companion.mjs under $CLAUDE_CONFIG_DIR/plugins/cache/*/codex/*
+#      (then ~/.claude/plugins/cache/...) with `node` available -> plugin;
+#      else `codex` CLI -> exec
 #
 # Account failover (exec transport only):
 #   CONSORT_CODEX_HOMES  ':'-separated CODEX_HOME directories, one per Codex
@@ -59,9 +60,21 @@
 #     leaves <out-file> empty/absent (callers keep their own fallbacks).
 
 _consort_companion_path() {
-  # newest plugin version wins; glob covers marketplace-directory variations
-  ls -d "$HOME"/.claude/plugins/cache/*/codex/*/scripts/codex-companion.mjs 2>/dev/null \
-    | sort -V | tail -1
+  # The Claude Code config dir holds the plugin cache: $CLAUDE_CONFIG_DIR when
+  # set, ~/.claude otherwise. Search that dir first and fall back to
+  # ~/.claude, so a plugin installed only there keeps working. Only an
+  # absolute CLAUDE_CONFIG_DIR counts, as Claude Code itself requires (it does
+  # not expand ~); a relative one would also resolve against the reviewed
+  # repo, which could then ship the script we execute. Within a dir the newest
+  # plugin version wins; the glob covers marketplace-directory variations.
+  # Paths may contain spaces (one result per line).
+  local cfg="${CLAUDE_CONFIG_DIR:-}" dir found
+  case "$cfg" in /*) ;; *) cfg="" ;; esac
+  for dir in ${cfg:+"$cfg"} "$HOME/.claude"; do
+    found="$(ls -d "$dir"/plugins/cache/*/codex/*/scripts/codex-companion.mjs 2>/dev/null | sort -V | tail -1)"
+    [ -n "$found" ] && { printf '%s\n' "$found"; return 0; }
+  done
+  return 0
 }
 
 consort_codex_backend() {

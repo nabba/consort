@@ -5,6 +5,22 @@ All notable changes to consort are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) while
 still in 0.x.
 
+## [0.13.1] — 2026-10-18
+
+### Fixed
+- **The Codex plugin transport finds a plugin installed under
+  `CLAUDE_CONFIG_DIR`.** `_consort_companion_path` looked only in
+  `~/.claude/plugins/cache`, so on a machine that runs Claude Code from another
+  config directory the auto mode silently fell back to `codex exec` and an
+  explicit `CONSORT_CODEX_BACKEND=plugin` failed. It now searches
+  `$CLAUDE_CONFIG_DIR/plugins/cache` first (paths with spaces work), then
+  `~/.claude/plugins/cache`, so a plugin installed only in `~/.claude` keeps
+  working. Only an absolute value counts, as Claude Code itself requires (it
+  does not expand `~`): a relative one would also resolve against the reviewed
+  repository, which could then supply the script consort runs. `codex-backend.test.sh`
+  unsets `CLAUDE_CONFIG_DIR` so it no longer reads the developer's own config,
+  and stops at once if `mktemp` fails instead of running with an empty `$T`.
+
 ## [0.13.0] — 2026-10-13
 
 ### Added

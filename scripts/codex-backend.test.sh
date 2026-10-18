@@ -7,9 +7,10 @@
 # unchanged single-call path when CONSORT_CODEX_HOMES is unset.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
+T="$(mktemp -d)" && [ -d "$T" ] || { echo "codex-backend.test: mktemp failed" >&2; exit 1; }
+trap 'rm -rf "$T"' EXIT
 export HOME="$T/home"; mkdir -p "$HOME/.codex" "$T/bin"
-unset CODEX_HOME CONSORT_CODEX_HOMES CONSORT_CODEX_BACKEND CONSORT_TERMSCAPE_DATA_DIR NODETERM_CX_ROOT
+unset CODEX_HOME CONSORT_CODEX_HOMES CONSORT_CODEX_BACKEND CONSORT_TERMSCAPE_DATA_DIR NODETERM_CX_ROOT CLAUDE_CONFIG_DIR
 : > "$HOME/.codex/auth.json"; echo ok > "$HOME/.codex/behave"
 
 cat > "$T/bin/codex" <<'STUB'
@@ -167,6 +168,20 @@ mkdir -p "$HOME/.claude/plugins/cache/m/codex/1.0.0/scripts"; : > "$HOME/.claude
 check "auto without homes picks plugin" '[ "$(consort_codex_backend 2>/dev/null)" = plugin ] || ! command -v node >/dev/null'
 check "auto with homes picks exec" '[ "$(CONSORT_CODEX_HOMES=$T/b consort_codex_backend)" = exec ]'
 check "plugin + homes refused" '! CONSORT_CODEX_BACKEND=plugin CONSORT_CODEX_HOMES=$T/b consort_codex_backend 2>/dev/null'
+
+# 10b. the companion is looked up in CLAUDE_CONFIG_DIR first, then ~/.claude
+CFG="$T/App Support/claude-cfg"
+check "no CLAUDE_CONFIG_DIR: ~/.claude" '[ "$(_consort_companion_path)" = "$HOME/.claude/plugins/cache/m/codex/1.0.0/scripts/codex-companion.mjs" ]'
+mkdir -p "$CFG"
+check "config dir without the plugin falls back to ~/.claude" '[ "$(CLAUDE_CONFIG_DIR="$CFG" _consort_companion_path)" = "$HOME/.claude/plugins/cache/m/codex/1.0.0/scripts/codex-companion.mjs" ]'
+mkdir -p "$CFG/plugins/cache/m/codex/1.0.0/scripts" "$CFG/plugins/cache/m/codex/1.2.0/scripts"
+: > "$CFG/plugins/cache/m/codex/1.0.0/scripts/codex-companion.mjs"; : > "$CFG/plugins/cache/m/codex/1.2.0/scripts/codex-companion.mjs"
+check "config dir wins, newest version, path with a space" '[ "$(CLAUDE_CONFIG_DIR="$CFG" _consort_companion_path)" = "$CFG/plugins/cache/m/codex/1.2.0/scripts/codex-companion.mjs" ]'
+mkdir -p "$HOME/.claude-alt/plugins/cache/m/codex/2.0.0/scripts"; : > "$HOME/.claude-alt/plugins/cache/m/codex/2.0.0/scripts/codex-companion.mjs"
+check "a ~ CLAUDE_CONFIG_DIR is not expanded (Claude Code needs it absolute)" '[ "$(CLAUDE_CONFIG_DIR="~/.claude-alt" _consort_companion_path)" = "$HOME/.claude/plugins/cache/m/codex/1.0.0/scripts/codex-companion.mjs" ]'
+mkdir -p "$T/bare-home"
+check "auto picks plugin from the config dir alone" '[ "$(HOME="$T/bare-home" CLAUDE_CONFIG_DIR="$CFG" consort_codex_backend 2>/dev/null)" = plugin ] || ! command -v node >/dev/null'
+check "a relative CLAUDE_CONFIG_DIR is ignored" '[ "$(cd "$T" && mkdir -p rel/plugins/cache/m/codex/9.9.9/scripts && : > rel/plugins/cache/m/codex/9.9.9/scripts/codex-companion.mjs && CLAUDE_CONFIG_DIR=rel _consort_companion_path)" = "$HOME/.claude/plugins/cache/m/codex/1.0.0/scripts/codex-companion.mjs" ]'
 
 # 11. probe walks the accounts
 mkhome p alive

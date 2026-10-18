@@ -220,7 +220,8 @@ Reaches Codex through one of two transports, resolved by `scripts/codex-backend.
 
 - **plugin** — the official Codex Claude Code plugin's companion runtime
   (`codex-companion.mjs task`), auto-detected under
-  `~/.claude/plugins/cache/*/codex/*`. Uses the plugin's shared runtime and
+  `$CLAUDE_CONFIG_DIR/plugins/cache/*/codex/*` when `CLAUDE_CONFIG_DIR` is
+  set to an absolute path, then `~/.claude/plugins/cache/*/codex/*`. Uses the plugin's shared runtime and
   session plumbing; consult/review run read-only, delegation runs
   workspace-write (`--write`). The output schema travels as a prompt contract
   and is extracted/validated locally (the runtime has no `--output-schema`).
