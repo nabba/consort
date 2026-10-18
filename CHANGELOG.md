@@ -13,11 +13,11 @@ still in 0.x.
   `~/.claude/plugins/cache`, so on a machine that runs Claude Code from another
   config directory the auto mode silently fell back to `codex exec` and an
   explicit `CONSORT_CODEX_BACKEND=plugin` failed. It now searches
-  `$CLAUDE_CONFIG_DIR/plugins/cache` first (a leading `~` expands; paths with
-  spaces work), then `~/.claude/plugins/cache`, so a plugin installed only in
-  `~/.claude` keeps working. Only an absolute value counts (after `~`
-  expansion): a relative one would resolve against the reviewed repository,
-  which could then supply the script consort runs. `codex-backend.test.sh`
+  `$CLAUDE_CONFIG_DIR/plugins/cache` first (paths with spaces work), then
+  `~/.claude/plugins/cache`, so a plugin installed only in `~/.claude` keeps
+  working. Only an absolute value counts, as Claude Code itself requires (it
+  does not expand `~`): a relative one would also resolve against the reviewed
+  repository, which could then supply the script consort runs. `codex-backend.test.sh`
   unsets `CLAUDE_CONFIG_DIR` so it no longer reads the developer's own config,
   and stops at once if `mktemp` fails instead of running with an empty `$T`.
 
